@@ -12,7 +12,22 @@ Sends native desktop notifications when Claude Code finishes a task or needs you
 
 ## Setup
 
-### 1. Wire up the hooks in `~/.claude/settings.json`
+### 1. Clone the repo
+
+```sh
+git clone https://github.com/harshii0509/claude-code-notifications.git
+cd claude-code-notifications
+```
+
+### 2. Mac — install terminal-notifier
+
+```sh
+brew install terminal-notifier
+```
+
+### 3. Wire up the hooks in `~/.claude/settings.json`
+
+Replace `<PATH>` with the full path to the cloned folder (run `pwd` inside it).
 
 Add these entries inside the `"hooks"` object:
 
@@ -22,7 +37,7 @@ Add these entries inside the `"hooks"` object:
     "hooks": [
       {
         "type": "command",
-        "command": "node /Users/harshii/Developer/side-projects/claude-code-notifications/notify.mjs",
+        "command": "node <PATH>/notify.mjs",
         "timeout": 5
       }
     ]
@@ -34,7 +49,7 @@ Add these entries inside the `"hooks"` object:
     "hooks": [
       {
         "type": "command",
-        "command": "node /Users/harshii/Developer/side-projects/claude-code-notifications/notify.mjs",
+        "command": "node <PATH>/notify.mjs",
         "timeout": 5
       }
     ]
@@ -42,19 +57,19 @@ Add these entries inside the `"hooks"` object:
 ]
 ```
 
-### 2. Mac — allow notifications
+### 4. Mac — allow notifications
 
 macOS may ask you to allow notifications from Terminal (or whichever app runs Claude Code). Accept the prompt, or go to:
 
 **System Settings → Notifications → Terminal → Allow Notifications**
 
-### 3. Windows — no extra setup
+### 5. Windows — no extra setup
 
 Uses Windows Runtime toast notifications built into Windows 10+. No extra packages needed.
 
 ## Requirements
 
 - Node.js (already required by Claude Code)
-- Mac: built-in `osascript`
+- Mac: `terminal-notifier` (`brew install terminal-notifier`) + built-in `osascript`
 - Windows: PowerShell + Windows 10+
 - Linux: `notify-send` (install via `sudo apt install libnotify-bin`)
