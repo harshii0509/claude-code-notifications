@@ -2,7 +2,7 @@ use std::io::Read;
 use std::process::{Command, Stdio};
 
 // ---------------------------------------------------------------------------
-// Payload & notification types
+// Payload
 // ---------------------------------------------------------------------------
 
 #[derive(serde::Deserialize, Default)]
@@ -11,39 +11,41 @@ struct HookPayload {
     notification_type: Option<String>,
 }
 
-struct Notification {
-    title:   &'static str,
-    message: &'static str,
-    sound:   bool,
-    urgent:  bool,
-}
-
 fn read_payload() -> HookPayload {
     let mut raw = String::new();
     std::io::stdin().read_to_string(&mut raw).unwrap_or(0);
     serde_json::from_str(&raw).unwrap_or_default()
 }
 
-fn resolve_notification(event: &str, notif_type: &str) -> Notification {
+// ---------------------------------------------------------------------------
+// Decision: urgency + sound flags (independently testable, no I/O)
+// ---------------------------------------------------------------------------
+
+struct NotifClass {
+    urgent: bool,
+    sound:  bool,
+}
+
+fn classify(event: &str, notif_type: &str) -> NotifClass {
     match (event, notif_type) {
-        ("Notification", "permission_prompt") => Notification {
-            title:   "Claude Code",
-            message: "Needs your permission \u{2014} waiting for input",
-            sound:   true,
-            urgent:  true,
-        },
-        ("Notification", "idle_prompt") => Notification {
-            title:   "Claude Code",
-            message: "Idle \u{2014} waiting for your response",
-            sound:   true,
-            urgent:  true,
-        },
-        _ => Notification {
-            title:   "Claude Code",
-            message: "Finished \u{2014} check your terminal",
-            sound:   false,
-            urgent:  false,
-        },
+        ("Notification", "permission_prompt") |
+        ("Notification", "idle_prompt") => NotifClass { urgent: true, sound: true },
+        _ => NotifClass { urgent: false, sound: false },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: display strings (independently testable, no I/O)
+// ---------------------------------------------------------------------------
+
+fn render(event: &str, notif_type: &str) -> (&'static str, &'static str) {
+    match (event, notif_type) {
+        ("Notification", "permission_prompt") =>
+            ("Claude Code", "Needs your permission \u{2014} waiting for input"),
+        ("Notification", "idle_prompt") =>
+            ("Claude Code", "Idle \u{2014} waiting for your response"),
+        _ =>
+            ("Claude Code", "Finished \u{2014} check your terminal"),
     }
 }
 
@@ -106,9 +108,21 @@ fn play_ping() {
 // macOS: host detection + focus check + terminal-notifier
 // ---------------------------------------------------------------------------
 
+/// How the host terminal was identified. Exposed so callers can log or
+/// act on detection confidence (TermProgram > ProcessTree > Fallback).
+#[cfg(target_os = "macos")]
+#[allow(dead_code)]
+enum Detection {
+    TermProgram,  // matched TERM_PROGRAM env var — most reliable
+    ProcessTree,  // found by walking parent processes — medium confidence
+    Fallback,     // defaulted to com.apple.Terminal — may be wrong
+}
+
 #[cfg(target_os = "macos")]
 struct Host {
-    bundle: &'static str,
+    bundle:              &'static str,
+    #[allow(dead_code)]  // exposed for callers that want to log detection confidence
+    detection:           Detection,
 }
 
 #[cfg(target_os = "macos")]
@@ -117,21 +131,21 @@ fn detect_host() -> Host {
 
     if tp == "vscode" {
         if std::env::var("CURSOR_CHANNEL").is_ok() || std::env::var("CURSOR_TRACE_ID").is_ok() {
-            return Host { bundle: "com.todesktop.230313mzl4w4u92" };
+            return Host { bundle: "com.todesktop.230313mzl4w4u92", detection: Detection::TermProgram };
         }
         if std::env::var("WINDSURF_EXTENSION_PATH").is_ok() {
-            return Host { bundle: "com.exafunction.windsurf" };
+            return Host { bundle: "com.exafunction.windsurf", detection: Detection::TermProgram };
         }
-        return Host { bundle: "com.microsoft.VSCode" };
+        return Host { bundle: "com.microsoft.VSCode", detection: Detection::TermProgram };
     }
 
     match tp.as_str() {
-        "iTerm.app"      => return Host { bundle: "com.googlecode.iterm2"     },
-        "WarpTerminal"   => return Host { bundle: "dev.warp.Warp-Stable"      },
-        "Apple_Terminal" => return Host { bundle: "com.apple.Terminal"        },
-        "ghostty"        => return Host { bundle: "com.mitchellh.ghostty"     },
-        "Hyper"          => return Host { bundle: "co.zeit.hyper"             },
-        "WezTerm"        => return Host { bundle: "com.github.wez.wezterm"    },
+        "iTerm.app"      => return Host { bundle: "com.googlecode.iterm2",  detection: Detection::TermProgram },
+        "WarpTerminal"   => return Host { bundle: "dev.warp.Warp-Stable",   detection: Detection::TermProgram },
+        "Apple_Terminal" => return Host { bundle: "com.apple.Terminal",     detection: Detection::TermProgram },
+        "ghostty"        => return Host { bundle: "com.mitchellh.ghostty",  detection: Detection::TermProgram },
+        "Hyper"          => return Host { bundle: "co.zeit.hyper",          detection: Detection::TermProgram },
+        "WezTerm"        => return Host { bundle: "com.github.wez.wezterm", detection: Detection::TermProgram },
         _ => {}
     }
 
@@ -177,7 +191,7 @@ fn walk_process_tree() -> Host {
                 comm.contains(pattern)
             };
             if matched {
-                return Host { bundle };
+                return Host { bundle, detection: Detection::ProcessTree };
             }
         }
 
@@ -185,7 +199,7 @@ fn walk_process_tree() -> Host {
         pid = next_pid;
     }
 
-    Host { bundle: "com.apple.Terminal" }
+    Host { bundle: "com.apple.Terminal", detection: Detection::Fallback }
 }
 
 #[cfg(target_os = "macos")]
@@ -203,15 +217,23 @@ fn is_host_focused(bundle: &str) -> bool {
     String::from_utf8_lossy(&out.stdout).trim() == bundle
 }
 
+/// Returns true when the notification should be silently dropped.
+/// Non-urgent (Stop) events are suppressed if the user is already looking
+/// at the terminal — no point interrupting an active session.
 #[cfg(target_os = "macos")]
-fn send_macos(notif: &Notification, host: &Host) {
-    let execute_cmd = format!("open -b '{}'", host.bundle);
+fn should_suppress(urgent: bool, bundle: &str) -> bool {
+    !urgent && is_host_focused(bundle)
+}
+
+#[cfg(target_os = "macos")]
+fn send_macos(title: &str, message: &str, bundle: &str) {
+    let execute_cmd = format!("open -b '{}'", bundle);
     Command::new("terminal-notifier")
         .args([
-            "-title",    notif.title,
-            "-message",  notif.message,
+            "-title",    title,
+            "-message",  message,
             "-execute",  &execute_cmd,
-            "-sender",   host.bundle,
+            "-sender",   bundle,
             "-group",    "claude-code",
         ])
         .stdout(Stdio::null())
@@ -225,10 +247,10 @@ fn send_macos(notif: &Notification, host: &Host) {
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "windows")]
-fn send_windows(notif: &Notification) {
+fn send_windows(title: &str, message: &str) {
     notify_rust::Notification::new()
-        .summary(notif.title)
-        .body(notif.message)
+        .summary(title)
+        .body(message)
         .show()
         .ok();
 }
@@ -238,12 +260,12 @@ fn send_windows(notif: &Notification) {
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "linux")]
-fn send_linux(notif: &Notification) {
+fn send_linux(title: &str, message: &str, urgent: bool) {
     use notify_rust::{Hint, Urgency};
     notify_rust::Notification::new()
-        .summary(notif.title)
-        .body(notif.message)
-        .hint(Hint::Urgency(if notif.urgent {
+        .summary(title)
+        .body(message)
+        .hint(Hint::Urgency(if urgent {
             Urgency::Critical
         } else {
             Urgency::Normal
@@ -260,27 +282,29 @@ fn main() {
     let payload    = read_payload();
     let event      = payload.hook_event_name.as_deref().unwrap_or("");
     let notif_type = payload.notification_type.as_deref().unwrap_or("");
-    let notif      = resolve_notification(event, notif_type);
+
+    let class            = classify(event, notif_type);
+    let (title, message) = render(event, notif_type);
 
     #[cfg(target_os = "macos")]
     {
         let host = detect_host();
-        if !notif.urgent && is_host_focused(host.bundle) {
+        if should_suppress(class.urgent, host.bundle) {
             std::process::exit(0);
         }
-        if notif.sound { play_ping(); }
-        send_macos(&notif, &host);
+        if class.sound { play_ping(); }
+        send_macos(title, message, host.bundle);
     }
 
     #[cfg(target_os = "windows")]
     {
-        if notif.sound { play_ping(); }
-        send_windows(&notif);
+        if class.sound { play_ping(); }
+        send_windows(title, message);
     }
 
     #[cfg(target_os = "linux")]
     {
-        if notif.sound { play_ping(); }
-        send_linux(&notif);
+        if class.sound { play_ping(); }
+        send_linux(title, message, class.urgent);
     }
 }
