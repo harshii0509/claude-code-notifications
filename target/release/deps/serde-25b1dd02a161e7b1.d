@@ -1,0 +1,14 @@
+/Users/harshii/Developer/side-projects/claude-code-notifications/target/release/deps/serde-25b1dd02a161e7b1.d: /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/harshii/Developer/side-projects/claude-code-notifications/target/release/build/serde-391352ac62e44401/out/private.rs
+
+/Users/harshii/Developer/side-projects/claude-code-notifications/target/release/deps/libserde-25b1dd02a161e7b1.rlib: /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/harshii/Developer/side-projects/claude-code-notifications/target/release/build/serde-391352ac62e44401/out/private.rs
+
+/Users/harshii/Developer/side-projects/claude-code-notifications/target/release/deps/libserde-25b1dd02a161e7b1.rmeta: /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/harshii/Developer/side-projects/claude-code-notifications/target/release/build/serde-391352ac62e44401/out/private.rs
+
+/Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/harshii/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/harshii/Developer/side-projects/claude-code-notifications/target/release/build/serde-391352ac62e44401/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/harshii/Developer/side-projects/claude-code-notifications/target/release/build/serde-391352ac62e44401/out

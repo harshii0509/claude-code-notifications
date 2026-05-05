@@ -1,0 +1,28 @@
+[package]
+name    = "notify"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "notify"
+path = "src/main.rs"
+
+[profile.release]
+opt-level     = "z"
+lto           = true
+codegen-units = 1
+strip         = true
+
+[dependencies]
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+# No format decoders needed — we generate samples in code
+rodio = { version = "0.19", default-features = false }
+
+# Notifications: macOS uses terminal-notifier via Command, so no crate needed there
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+notify-rust = "4"
+
+# Process tree walk on macOS needs libc::getppid()
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
